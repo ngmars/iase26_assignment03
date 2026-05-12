@@ -1,0 +1,3 @@
+A toy project for the kt-coding-agent demo.
+The agent should be able to list these files and summarize the project.
+Nothing important happens here.

@@ -1,0 +1,9 @@
+[tools]
+java = "temurin-25"
+
+[env]
+# Silences the JDK 25 "restricted method called" warning that Gradle's launcher
+# JVM prints because the bundled native-platform library uses System.load. The
+# org.gradle.jvmargs entry in gradle.properties covers the same flag for the
+# Gradle daemon JVM, but the launcher reads its options from GRADLE_OPTS.
+GRADLE_OPTS = "--enable-native-access=ALL-UNNAMED"
