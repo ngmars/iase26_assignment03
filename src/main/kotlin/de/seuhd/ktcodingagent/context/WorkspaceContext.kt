@@ -1,7 +1,10 @@
 package de.seuhd.ktcodingagent.context
 
 import kotlinx.serialization.Serializable
+import java.nio.charset.StandardCharsets
+import java.nio.file.Files
 import java.nio.file.Path
+import java.util.concurrent.TimeUnit
 
 /**
  * Snapshot of stable facts about the workspace, captured once at agent startup.
@@ -63,6 +66,71 @@ data class WorkspaceContext(
  */
 object WorkspaceContextLoader {
     fun load(cwd: Path, walkToRepoRoot: Boolean = true): WorkspaceContext {
-        TODO("Implement WorkspaceContext.load (sub-exercise (b)).")
+        val normalizedCwd = cwd.toAbsolutePath().normalize()
+        val repoRootPath = runGit(normalizedCwd, "rev-parse", "--show-toplevel")
+            ?.let { Path.of(it).toAbsolutePath().normalize() }
+            ?: normalizedCwd
+        val branch = runGit(normalizedCwd, "branch", "--show-current").orFallback("-")
+        val defaultBranch = runGit(normalizedCwd, "symbolic-ref", "--short", "refs/remotes/origin/HEAD")
+            ?.removePrefix("origin/")
+            .orFallback("main")
+        val status = clip(runGit(normalizedCwd, "status", "--short").orFallback("clean"), 1500)
+        val recentCommits = runGit(normalizedCwd, "log", "--oneline", "-5")
+            ?.lines()
+            ?.map { it.trim() }
+            ?.filter { it.isNotBlank() }
+            ?: emptyList()
+
+        val roots = buildList {
+            if (walkToRepoRoot) add(repoRootPath)
+            add(normalizedCwd)
+        }.distinct()
+
+        val docs = linkedMapOf<String, String>()
+        val filenames = listOf("AGENTS.md", "README.md", "build.gradle.kts")
+        for (root in roots) {
+            for (name in filenames) {
+                val file = root.resolve(name)
+                if (!Files.isRegularFile(file)) continue
+                val normalized = file.toAbsolutePath().normalize()
+                val key = normalized.toString()
+                if (docs.containsKey(key)) continue
+                val content = Files.readString(normalized)
+                docs[key] = clip(content, 1200)
+            }
+        }
+
+        return WorkspaceContext(
+            cwd = normalizedCwd.toString(),
+            repoRoot = repoRootPath.toString(),
+            branch = branch,
+            defaultBranch = defaultBranch,
+            status = if (status.isBlank()) "clean" else status,
+            recentCommits = recentCommits.take(5),
+            projectDocs = docs
+        )
+    }
+
+    private fun runGit(cwd: Path, vararg args: String): String? = try {
+        val process = ProcessBuilder(listOf("git", *args))
+            .directory(cwd.toFile())
+            .redirectErrorStream(true)
+            .start()
+        if (!process.waitFor(3, TimeUnit.SECONDS)) {
+            process.destroyForcibly()
+            return null
+        }
+        if (process.exitValue() != 0) return null
+        process.inputStream.readAllBytes().toString(StandardCharsets.UTF_8).trim()
+            .ifBlank { null }
+    } catch (_: Exception) {
+        null
+    }
+
+    private fun String?.orFallback(fallback: String): String = this?.ifBlank { null } ?: fallback
+
+    private fun clip(text: String, limit: Int): String {
+        if (text.length <= limit) return text
+        return text.take(limit) + "...[truncated ${text.length - limit} chars]"
     }
 }

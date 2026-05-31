@@ -3,7 +3,11 @@ package de.seuhd.ktcodingagent.model
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import java.io.IOException
+import java.net.URI
 import java.net.http.HttpClient
+import java.net.http.HttpRequest
+import java.net.http.HttpResponse
 import java.time.Duration
 
 /**
@@ -38,11 +42,77 @@ class OllamaModelClient(
 ) : ModelClient {
 
     override fun complete(prompt: String, maxNewTokens: Int): String {
-        TODO("Implement OllamaModelClient.complete (sub-exercise (b)).")
+        val payload = GenerateRequest(
+            model = modelName,
+            prompt = prompt,
+            stream = false,
+            raw = false,
+            think = false,
+            options = GenerateOptions(
+                numPredict = maxNewTokens,
+                temperature = temperature,
+                topP = topP
+            )
+        )
+        val body = JSON.encodeToString(GenerateRequest.serializer(), payload)
+        val request = HttpRequest.newBuilder()
+            .uri(URI.create("${host.trimEnd('/')}/api/generate"))
+            .timeout(timeout)
+            .header("Content-Type", "application/json")
+            .POST(HttpRequest.BodyPublishers.ofString(body))
+            .build()
+        val response = try {
+            httpClient.send(request, HttpResponse.BodyHandlers.ofString())
+        } catch (e: IOException) {
+            throw OllamaUnreachableException(host, modelName, e)
+        } catch (e: InterruptedException) {
+            Thread.currentThread().interrupt()
+            throw RuntimeException("request interrupted", e)
+        }
+        if (response.statusCode() !in 200..299) {
+            throw RuntimeException("Ollama generate failed with HTTP ${response.statusCode()}: ${response.body()}")
+        }
+        val parsed = JSON.decodeFromString(GenerateResponse.serializer(), response.body())
+        return parsed.response.orEmpty()
     }
 
     fun checkAvailability(): AvailabilityCheck {
-        TODO("Implement OllamaModelClient.checkAvailability (sub-exercise (b)).")
+        val request = HttpRequest.newBuilder()
+            .uri(URI.create("${host.trimEnd('/')}/api/tags"))
+            .timeout(timeout)
+            .GET()
+            .build()
+        val response = try {
+            httpClient.send(request, HttpResponse.BodyHandlers.ofString())
+        } catch (_: IOException) {
+            return AvailabilityCheck.OllamaUnreachable(
+                "Ollama is not running. Start it with `ollama serve`."
+            )
+        } catch (_: InterruptedException) {
+            Thread.currentThread().interrupt()
+            return AvailabilityCheck.OllamaUnreachable(
+                "Ollama is not running. Start it with `ollama serve`."
+            )
+        }
+
+        if (response.statusCode() !in 200..299) {
+            return AvailabilityCheck.OllamaUnreachable(
+                "Ollama /api/tags failed with HTTP ${response.statusCode()}: ${response.body()}"
+            )
+        }
+
+        val parsed = try {
+            JSON.decodeFromString(TagsResponse.serializer(), response.body())
+        } catch (_: Exception) {
+            return AvailabilityCheck.OllamaUnreachable("Unexpected response from Ollama /api/tags.")
+        }
+        val names = parsed.models.map { it.name }.toSet()
+        val matches = modelName in names || "$modelName:latest" in names
+        return if (matches) {
+            AvailabilityCheck.Ready
+        } else {
+            AvailabilityCheck.ModelMissing("Model '$modelName' is not pulled. Run `ollama pull $modelName`.")
+        }
     }
 
     companion object {

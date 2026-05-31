@@ -2,6 +2,9 @@ package de.seuhd.ktcodingagent.tools
 
 import de.seuhd.ktcodingagent.io.Workspace
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
+import java.nio.file.Files
 
 /**
  * Sub-exercise (a): implement [execute].
@@ -22,6 +25,27 @@ class ListFilesTool(private val workspace: Workspace) : Tool {
     override val risky: Boolean = false
 
     override fun execute(args: JsonObject): ToolResult {
-        TODO("Implement list_files (sub-exercise (a)).")
+        val pathArg = (args["path"] as? JsonPrimitive)?.contentOrNull ?: "."
+        val dir = workspace.resolveSandboxed(pathArg)
+        if (!Files.isDirectory(dir)) {
+            return ToolResult.error("not a directory: $pathArg")
+        }
+
+        val entries = Files.list(dir).use { stream ->
+            stream
+                .filter { candidate -> candidate.fileName.toString() !in IGNORED_PATH_NAMES }
+                .sorted(
+                    compareBy<java.nio.file.Path> { !Files.isDirectory(it) }
+                        .thenBy { workspace.root.relativize(it).toString() }
+                )
+                .map { candidate ->
+                    val rel = workspace.root.relativize(candidate).toString()
+                    val kind = if (Files.isDirectory(candidate)) "D" else "F"
+                    "[$kind] $rel"
+                }
+                .toList()
+        }
+
+        return if (entries.isEmpty()) ToolResult("(empty)") else ToolResult(entries.joinToString("\n"))
     }
 }

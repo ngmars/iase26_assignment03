@@ -2,6 +2,10 @@ package de.seuhd.ktcodingagent.tools
 
 import de.seuhd.ktcodingagent.io.Workspace
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.intOrNull
+import java.nio.file.Files
 
 /**
  * Sub-exercise (a): implement [execute].
@@ -25,6 +29,28 @@ class ReadFileTool(private val workspace: Workspace) : Tool {
     override val risky: Boolean = false
 
     override fun execute(args: JsonObject): ToolResult {
-        TODO("Implement read_file (sub-exercise (a)).")
+        val path = (args["path"] as? JsonPrimitive)?.contentOrNull
+            ?: return ToolResult.error("missing required argument: path")
+        val start = (args["start"] as? JsonPrimitive)?.intOrNull ?: 1
+        val end = (args["end"] as? JsonPrimitive)?.intOrNull ?: 200
+        if (start < 1 || end < start) return ToolResult.error("invalid line range")
+
+        val file = workspace.resolveSandboxed(path)
+        if (!Files.isRegularFile(file)) {
+            return ToolResult.error("not a file: $path")
+        }
+
+        val lines = Files.readAllLines(file)
+        val from = start - 1
+        val until = minOf(end, lines.size)
+        val rendered = if (from >= lines.size) {
+            emptyList()
+        } else {
+            (from until until).map { index -> "%4d: %s".format(index + 1, lines[index]) }
+        }
+
+        val rel = workspace.root.relativize(file).toString()
+        val body = rendered.joinToString("\n")
+        return if (body.isEmpty()) ToolResult("# $rel") else ToolResult("# $rel\n$body")
     }
 }
