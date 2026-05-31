@@ -22,7 +22,7 @@ class OllamaModelClientUnitTest {
             cannedStatus = 200
         )
         val client = OllamaModelClient(
-            modelName = "qwen3.5:4b",
+            modelName = "qwen3.5:2b",
             host = "http://127.0.0.1:11434",
             httpClient = stub
         )
@@ -32,7 +32,7 @@ class OllamaModelClientUnitTest {
         assertEquals("<final>ok</final>", result)
         assertEquals(URI.create("http://127.0.0.1:11434/api/generate"), capture.uri)
         val body = Json.parseToJsonElement(capture.body).jsonObject
-        assertEquals("qwen3.5:4b", body["model"]?.jsonPrimitive?.content)
+        assertEquals("qwen3.5:2b", body["model"]?.jsonPrimitive?.content)
         assertEquals("hello", body["prompt"]?.jsonPrimitive?.content)
         assertEquals("false", body["stream"]?.jsonPrimitive?.toString().orEmpty().trim('"'))
         val options = body["options"] as JsonObject
@@ -48,7 +48,7 @@ class OllamaModelClientUnitTest {
             cannedStatus = 200
         )
         val client = OllamaModelClient(
-            modelName = "qwen3.5:4b",
+            modelName = "qwen3.5:2b",
             host = "http://127.0.0.1:11434",
             httpClient = stub
         )
@@ -63,11 +63,11 @@ class OllamaModelClientUnitTest {
     fun checkAvailabilityReportsReadyWhenModelPresent() {
         val stub = StubHttpClient(
             capture = RequestCapture(),
-            cannedBody = """{"models":[{"name":"qwen3.5:4b"}]}""",
+            cannedBody = """{"models":[{"name":"qwen3.5:2b"}]}""",
             cannedStatus = 200
         )
         val client = OllamaModelClient(
-            modelName = "qwen3.5:4b",
+            modelName = "qwen3.5:2b",
             host = "http://127.0.0.1:11434",
             httpClient = stub
         )
@@ -83,7 +83,7 @@ class OllamaModelClientUnitTest {
             cannedStatus = 500
         )
         val client = OllamaModelClient(
-            modelName = "qwen3.5:4b",
+            modelName = "qwen3.5:2b",
             host = "http://127.0.0.1:11434",
             httpClient = stub
         )
@@ -97,7 +97,7 @@ class OllamaModelClientUnitTest {
     @Test
     fun completeThrowsOllamaUnreachableOnIoException() {
         val client = OllamaModelClient(
-            modelName = "qwen3.5:4b",
+            modelName = "qwen3.5:2b",
             host = "http://127.0.0.1:11434",
             httpClient = FailingHttpClient()
         )
@@ -113,7 +113,7 @@ class OllamaModelClientIntegrationTest {
     @Test
     @EnabledIfSystemProperty(named = "ollama.test", matches = "true")
     fun smokeTestAgainstLiveOllama() {
-        val client = OllamaModelClient(modelName = "qwen3.5:4b")
+        val client = OllamaModelClient(modelName = "qwen3.5:2b")
         val availability = client.checkAvailability()
         assertEquals(AvailabilityCheck.Ready, availability)
         val response = client.complete("Reply with exactly: ok", 16)

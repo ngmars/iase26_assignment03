@@ -385,7 +385,7 @@ private fun printHelp() {
 
         Flags:
           --cwd <dir>          Workspace directory (default: .)
-          --model <name>       Ollama model (default: qwen3.5:4b)
+          --model <name>       Ollama model (default: qwen3.5:2b)
           --host <url>         Ollama host (default: http://127.0.0.1:11434)
           --approval auto|ask  Approval mode for risky tools (default: ask)
           --resume <id>        Resume a session by id, or 'latest'

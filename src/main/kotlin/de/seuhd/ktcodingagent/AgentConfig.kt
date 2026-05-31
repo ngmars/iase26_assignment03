@@ -12,7 +12,7 @@ import java.time.Duration
  * default values for the CLI parser; can also be constructed directly for tests.
  */
 data class AgentConfig(
-    val modelName: String = "qwen3.5:4b",
+    val modelName: String = "qwen3.5:2b",
     val host: String = OllamaModelClient.DEFAULT_HOST,
     val workspaceRoot: Path = Paths.get("."),
     val maxSteps: Int = 16,

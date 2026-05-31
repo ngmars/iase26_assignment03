@@ -84,7 +84,7 @@ model, and invoke gradle with the gate flag:
 ollama serve
 
 # In the project root:
-ollama pull qwen3.5:4b
+ollama pull qwen3.5:2b
 ./gradlew test -Dollama.test=true
 ```
 
@@ -106,7 +106,7 @@ ollama --version
 ollama serve
 
 # Pull the model:
-ollama pull qwen3.5:4b
+ollama pull qwen3.5:2b
 # Smaller fallback for laptops with limited RAM (pass `--model qwen3.5:2b`):
 ollama pull qwen3.5:2b
 # Larger option (~6.6 GB) if you have the RAM (pass `--model qwen3.5:9b`):
